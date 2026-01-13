@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JANUS - Powered by Appeal Intelligence</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="layers.css">
+    <link rel="stylesheet" href="diff-view.css">
+    <link rel="stylesheet" href="utils.css">
+    <!-- Preload Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <header>
+        <div class="brand">
+            <img src="janus_logooo.png" alt="Janus Logo"
+                style="height: 50px; width: auto; margin-right: 0.5rem; mix-blend-mode: lighten; filter: contrast(1.2);">
+            <div style="display: flex; flex-direction: column; justify-content: center;">
+                <style>
+                    @keyframes shimmer {
+                        0% {
+                            background-position: -200% center;
+                        }
+
+                        100% {
+                            background-position: 200% center;
+                        }
+                    }
+
+                    .janus-text {
+                        background: linear-gradient(90deg, #ffffff 0%, #ffffff 40%, var(--primary) 50%, #ffffff 60%, #ffffff 100%);
+                        background-size: 200% auto;
+                        color: #ffffff;
+                        background-clip: text;
+                        -webkit-background-clip: text;
+                        -webkit-text-fill-color: transparent;
+                        animation: shimmer 4s ease-in-out infinite;
+                    }
+                </style>
+                <span class="janus-text"
+                    style="font-family: 'JetBrains Mono', monospace; font-size: 1.6rem; font-weight: 500; line-height: 1; letter-spacing: -0.04em;">JANUS</span>
+                <span
+                    style="color: var(--primary); font-size: 0.75rem; font-weight: 600; margin-top: 4px; letter-spacing: 0.02em;">Powered
+                    by Appeal Intelligence</span>
+            </div>
+        </div>
+        <div class="controls">
+            <div class="select-wrapper">
+                <label for="submission-count">Documents:</label>
+                <select id="submission-count">
+                    <option value="1">1</option>
+                    <option value="2" selected>2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9</option>
+                    <option value="10">10</option>
+                    <option value="11">11</option>
+                    <option value="12">12</option>
+                    <option value="13">13</option>
+                    <option value="14">14</option>
+                    <option value="15">15</option>
+                    <option value="16">16</option>
+                    <option value="17">17</option>
+                    <option value="18">18</option>
+                    <option value="19">19</option>
+                    <option value="20">20</option>
+                    <option value="21">21</option>
+                    <option value="22">22</option>
+                    <option value="23">23</option>
+                    <option value="24">24</option>
+                    <option value="25">25</option>
+                    <option value="26">26</option>
+                    <option value="27">27</option>
+                    <option value="28">28</option>
+                    <option value="29">29</option>
+                    <option value="30">30</option>
+                </select>
+            </div>
+        </div>
+        <div class="usage-counter">
+            <span class="counter-label">Searches</span>
+            <span id="global-search-count" class="counter-value">0</span>
+        </div>
+    </header>
+
+    <main>
+        <!-- Dynamic Upload Grid -->
+        <div class="upload-grid" id="upload-grid">
+            <!-- Injected by JS -->
+        </div>
+
+        <div class="action-area">
+            <button id="btn-compare" class="btn-compare" disabled>Compare Documents</button>
+            <div id="error-msg" class="error-msg"></div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results-container" class="results-container">
+            <!-- Injected by JS -->
+        </div>
+    </main>
+
+    <script src="comparison-logic.js"></script>
+    <script src="script.js"></script>
+    <!-- Libraries for PDF/DOCX extraction -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+</body>
+
+
+</html>
