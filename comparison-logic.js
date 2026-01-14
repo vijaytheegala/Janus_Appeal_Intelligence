@@ -112,7 +112,8 @@ const AdvancedComparison = {
                     });
                 }
 
-                const percent = totalItems === 0 ? 100 : Math.round((matches / totalItems) * 100);
+                // Fix: If no structured data is found in either doc, it shouldn't boost the match score to 100%
+                const percent = totalItems === 0 ? 0 : Math.round((matches / totalItems) * 100);
                 return { matchPercent: percent, mismatches };
             },
             countMap: function (arr) {
@@ -311,7 +312,8 @@ function computeTextDiff(text1, text2) {
     }
 
     const maxLen = Math.max(n, m);
-    const percent = maxLen === 0 ? 100 : Math.round((matchingLines / maxLen) * 100);
+    // Fix: If both texts are empty, it likely indicates an extraction failure, not a perfect match
+    const percent = maxLen <= 1 ? 0 : Math.round((matchingLines / maxLen) * 100);
 
     return {
         diff,

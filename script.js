@@ -149,10 +149,14 @@ function handleFileSelect(index, file) {
                             fullText += text + '\n\n';
                         }
                         processedContent = fullText;
+                        if (!fullText || fullText.trim().length < 50) {
+                            throw new Error("Extracted text too short or empty");
+                        }
                     } catch (err) {
                         console.warn('PDF extraction failed, falling back to binary strings', err);
                         const binaryStr = new TextDecoder('iso-8859-1').decode(view);
                         processedContent = extractStringsFromBinary(binaryStr);
+                        file.extractionWarning = true;
                     }
                 } else {
                     const binaryStr = new TextDecoder('iso-8859-1').decode(view);
@@ -174,11 +178,13 @@ function handleFileSelect(index, file) {
                         } else {
                             const binaryStr = new TextDecoder('iso-8859-1').decode(view);
                             processedContent = extractStringsFromBinary(binaryStr);
+                            file.extractionWarning = true;
                         }
                     } catch (err) {
                         console.warn('DOCX extraction failed, falling back to binary strings', err);
                         const binaryStr = new TextDecoder('iso-8859-1').decode(view);
                         processedContent = extractStringsFromBinary(binaryStr);
+                        file.extractionWarning = true;
                     }
                 } else {
                     const binaryStr = new TextDecoder('iso-8859-1').decode(view);
@@ -197,6 +203,7 @@ function handleFileSelect(index, file) {
                 if (isBinaryFile) {
                     const binaryStr = new TextDecoder('iso-8859-1').decode(view);
                     processedContent = extractStringsFromBinary(binaryStr);
+                    file.extractionWarning = true;
                 } else {
                     try {
                         processedContent = new TextDecoder('utf-8').decode(view);
@@ -209,6 +216,7 @@ function handleFileSelect(index, file) {
             console.error('Error processing file', err);
             const binaryStr = new TextDecoder('iso-8859-1').decode(view);
             processedContent = extractStringsFromBinary(binaryStr);
+            file.extractionWarning = true;
         }
 
         if (ext === 'docx' && window.JSZip) {
@@ -239,7 +247,8 @@ function handleFileSelect(index, file) {
             type: file.type,
             size: file.size,
             lastModified: file.lastModified,
-            images: images
+            images: images,
+            lowConfidence: !!file.extractionWarning
         };
 
         renderUploadSlots(state.count);
@@ -267,10 +276,42 @@ function isBinary(str) {
 }
 
 function extractStringsFromBinary(binaryStr) {
-    const regex = /[A-Za-z0-9\s\.,;:!?'"()\[\]\{\}\-\_\/\\]{4,}/g;
+    // Increase min length to 8 and refine character set
+    const regex = /[A-Za-z0-9\s\.,;:!?'"()\[\]\{\}\-\_\/\\]{8,}/g;
     const matches = binaryStr.match(regex);
     if (!matches) return "[No readable text found in binary file]";
-    return matches.join('\n');
+
+    // Filter out common PDF/Binary junk
+    const junkPatterns = [
+        /PDF-\d\.\d/, /obj/, /endobj/, /stream/, /endstream/, /xref/,
+        /Length/, /Filter/, /FlateDecode/, /Type/, /Subtype/,
+        /MediaBox/, /Contents/, /Resources/, /Parent/,
+        /[A-Z]{10,}/, /[a-z]{10,}/, /[0-9]{10,}/,
+        /CDEFGHIJ/, /STUVWXYZ/
+    ];
+
+    const filtered = matches.filter(m => {
+        const trimmed = m.trim();
+        if (trimmed.length < 8) return false;
+        if (junkPatterns.some(p => p.test(trimmed))) return false;
+
+        // "Naturalness" check: 
+        // 1. Must have a high ratio of common invoice characters (letters, numbers, spaces, dots, dashes)
+        // 2. Symbols like \ / [ ] { } should be rare
+        const symbols = (trimmed.match(/[\/\\\[\]\{\}\(\)\_\^\|\~]/g) || []).length;
+        const symbolRatio = symbols / trimmed.length;
+        if (symbolRatio > 0.15) return false; // Too many "programming" symbols
+
+        // 3. Must contain at least one space or a lowercase letter (to distinguish from binary flags)
+        const hasSpace = trimmed.includes(' ');
+        const hasLowercase = /[a-z]/.test(trimmed);
+        if (!hasSpace && !hasLowercase && trimmed.length < 15) return false;
+
+        return true;
+    });
+
+    if (filtered.length === 0) return "[No valid business text found: File appears to be a scanned image or encrypted]";
+    return filtered.join('\n');
 }
 
 function escapeHTML(str) {
@@ -627,13 +668,16 @@ function renderComparisonResult(name1, name2, data, idx1, idx2) {
 
     const matchP = data.matchPercent;
     const isPerfect = matchP === 100;
-
     const textStats = data.details.text.stats;
 
     const safeName1 = escapeHTML(name1);
     const safeName2 = escapeHTML(name2);
     const labelA = idx1 ? `Document ${idx1} — ` : '';
     const labelB = idx2 ? `Document ${idx2} — ` : '';
+
+    const docA = state.files.find(f => f && f.name === name1);
+    const docB = state.files.find(f => f && f.name === name2);
+    const isLowConfidence = (docA && docA.lowConfidence) || (docB && docB.lowConfidence);
 
     const header = `
         <div class="comparison-header">
@@ -650,6 +694,11 @@ function renderComparisonResult(name1, name2, data, idx1, idx2) {
                 <div class="stat-pill removed">-${textStats.removed} Lines</div>
             </div>
         </div>
+        ${isLowConfidence ? `
+        <div class="diff-note" style="padding:0.75rem 1.5rem; background:rgba(255,153,0,0.1); border-bottom:1px solid rgba(255,153,0,0.2); color:var(--primary); font-size:0.9rem; display:flex; align-items:center; gap:0.5rem;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            <strong>Scanned Document / Extraction Issue:</strong> This document appears to be a scanned image or has restricted text. JANUS is analyzing the raw file structure (Binary Layer), which may result in unreadable characters below.
+        </div>` : ''}
     `;
 
     let contentHtml = '';
@@ -658,13 +707,21 @@ function renderComparisonResult(name1, name2, data, idx1, idx2) {
     if (textDiff && textDiff.diff) {
         const jaccard = data.details.jaccard || 0;
         const jaccardClass = jaccard > 80 ? 'text-success' : (jaccard > 50 ? 'text-warning' : 'text-danger');
+        const textLayerId = `text-layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
         contentHtml += `
             <div class="layer-header" style="display:flex; justify-content:space-between; align-items:center;">
                 <span>Text Layer (Differences Only)</span>
-                <span style="font-size:0.85rem; text-transform:none; opacity:0.9;">
-                    Content Similarity: <strong class="${jaccardClass}">${jaccard}%</strong>
-                </span>
+                <div style="display:flex; align-items:center; gap:1.5rem;">
+                    <span style="font-size:0.85rem; text-transform:none; opacity:0.9;">
+                        Content Similarity: <strong class="${jaccardClass}">${jaccard}%</strong>
+                    </span>
+                    <span class="view-toggle-icon" onclick="toggleStructLayer('${textLayerId}', this)" style="cursor:pointer; padding:4px;" title="Toggle View">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            ${isLowConfidence ? '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>' : '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>'}
+                        </svg>
+                    </span>
+                </div>
             </div>`;
 
         if (jaccard > 80 && textDiff.stats.matchPercent < 70) {
@@ -676,6 +733,7 @@ function renderComparisonResult(name1, name2, data, idx1, idx2) {
         const rows = generateSideBySideRows(textDiff.diff);
         const filteredRows = filterContextRows(rows, 2);
 
+        contentHtml += `<div id="${textLayerId}" style="display:${isLowConfidence ? 'none' : 'block'}">`;
         if (filteredRows.length === 0) {
             contentHtml += '<div style="padding:1rem; color:var(--text-muted)">No text differences found.</div>';
         } else {
@@ -704,6 +762,7 @@ function renderComparisonResult(name1, name2, data, idx1, idx2) {
             });
             contentHtml += '</div></div>';
         }
+        contentHtml += '</div>';
     }
 
     const struct = data.details.structure;
